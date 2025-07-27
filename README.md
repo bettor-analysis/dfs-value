@@ -14,7 +14,7 @@ This repo is a set of R scripts to help spot undervalued players in Daily Fantas
 - R and packages: `readr`, `dplyr`, `ggplot2`, `Metrics`, `randomForest`, `xgboost`, `tibble`. Install with `install.packages(c(...))`.
 - Data: Grab Rotowire projections and DFS salaries, save as CSV in `/data` (e.g., columns: PLAYER, SAL, FPTS).
 
-## Scripts by Sport
+## Scripts 
 
 ### MLB (mlb-value-finder.R)
 Analyzes MLB players. Predicts salary from FPTS, grades based on deltas (e.g., ≥600 = A).
@@ -26,11 +26,8 @@ How to run:
 
 Sample output: Model comparison table, graded players, etc.
 
-### NFL (coming soon - nfl-value-finder.R)
-Similar setup for NFL, using projections like yards, TDs, etc.
-
-### NBA (coming soon - nba-value-finder.R)
-For basketball—points, rebounds, assists into salary predictions.
+### All Sports (dfsvalue_app.R)
+Interactive Shiny app that works with any sport’s DFS slate. Upload a CSV of player name, projected points (FPTS) and salary (SAL), train multiple regression models, compare their performance, and generate value-graded player tables. Includes real-time filtering by player, salary range, and grade.
 
 
 ## Tips

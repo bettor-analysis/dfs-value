@@ -1,6 +1,6 @@
 # DFS Value Finder Collection
 
-This repo is a set of R scripts to help spot undervalued players in Daily Fantasy Sports (DFS) across different sports. It uses regression models to predict salaries based on Rotowire projections (like fantasy points), then grades players on their "value" delta. Great for lineup building on sites like DraftKings or FanDuel.
+This repo is a set of R scripts to help spot undervalued players in Daily Fantasy Sports (DFS) across different sports. It uses regression and machine learning models to predict salaries based on Rotowire projections (like fantasy points), then grades players on their "value" delta. Great for lineup building on sites like DraftKings or FanDuel.
 
 ## What It Does
 - Loads player data from CSV files (e.g., salaries, projections from Rotowire).

@@ -96,7 +96,7 @@ server <- function(input, output, session) {
         FPTS   = !!sym(input$fpts_col),
         SAL    = !!sym(input$salary_col)
       ) %>%
-      filter(!is.na(FPTS), !is.na(SAL))
+      filter(!is.na(FPTS), !is.na(SAL), FPTS > 0)
   })
   
   # Run models on button click

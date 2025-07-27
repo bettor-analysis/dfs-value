@@ -1,10 +1,3 @@
-# DFS Shiny App: ML Regression Value Guide
-# Adam Wickwire - Bettor Analysis
-# This Shiny app provides a regression-based value guide for Daily Fantasy Sports (DFS) players.
-# It allows users to upload a CSV file with player data, run multiple regression and machine learning models,
-# and evaluate player value based on projected points and salary.
-
-
 library(shiny)
 library(readr)
 library(dplyr)
@@ -47,7 +40,7 @@ ui <- fluidPage(
                tags$li(strong("Log-Linear Regression"), ": Models the log of Salary against Projected Points to capture exponential-like relationships, then converts predictions back to salary scale."),
                tags$li(strong("Polynomial Regression (Degree 2)"), ": Introduces a squared term of Projected Points to model curvature in the relationship."),
                tags$li(strong("Random Forest"), ": An ensemble of decision trees that captures non-linear patterns and interactions between variables."),
-               tags$li(strong("XGBoost"), ": A gradient boosting framework that builds trees sequentially to minimize prediction error, often yielding high accuracy." )
+               tags$li(strong("XGBoost"), ": A gradient boosting framework that builds trees sequentially to minimize prediction error, often yielding high accuracy.")
              ),
              h4("Model Selection & Value Grades"),
              p("Each model is evaluated using RMSE, MAE, MAPE, and Adjusted R². The model with the lowest RMSE is selected as the best predictor. Predicted salaries from this model are compared to actual salaries to compute a Value Delta, which is graded as follows:"),
@@ -57,7 +50,21 @@ ui <- fluidPage(
                tags$li("C | Moderate Value: Delta > -200"),
                tags$li("X | Fade: Delta ≤ -200")
              ),
-             p("Use 'Download Results' to export the full dataset with grades for further analysis or sharing.")
+             p("Use 'Download Results' to export the full dataset with grades for further analysis or sharing."),
+             hr(),
+             h4("Why It Works"),
+             tags$ul(
+               tags$li(strong("Salary vs. Points Relationship:"), " DFS salaries generally correlate with projected fantasy points. By modeling salary as a function of FPTS, the app estimates what a player’s salary should be given their projection."),
+               tags$li(strong("Value Delta Highlighting:"), " The difference between model-predicted salary and actual salary shows underpriced players (positive delta) and overpriced ones (negative delta)."),
+               tags$li(strong("Model Diversity:"), " Combining traditional regression and tree-based machine learning captures both linear trends and complex non-linear relationships in the data.")
+             ),
+             hr(),
+             h4("Limitations to Be Aware Of"),
+             tags$ul(
+               tags$li(strong("Missing Features:"), " DFS salaries consider many variables beyond projected points (e.g., opponent strength, player popularity, injury risk) that aren’t in this model."),
+               tags$li(strong("Projection Quality:"), " The accuracy of value estimates depends on the quality of the input projections. Inaccurate FPTS input leads to biased model outputs."),
+               tags$li(strong("Contextual Factors:"), " DFS sites sometimes price players strategically to diversify lineups, so flagged ‘value’ players may carry additional risk or intentional price inefficiencies.")
+             )
     )
   )
 )
@@ -95,7 +102,6 @@ server <- function(input, output, session) {
   # Run models on button click
   results <- eventReactive(input$run, {
     data <- df()
-    # Train models and predict
     model_linear <- lm(SAL ~ FPTS, data)
     data$PredLinear <- predict(model_linear, newdata = data)
     model_log    <- lm(log(SAL) ~ FPTS, data)
@@ -109,7 +115,6 @@ server <- function(input, output, session) {
     model_xgb    <- xgboost(data = X, label = y, nrounds = 100,
                             objective = "reg:squarederror", verbose = 0)
     data$PredXGB <- predict(model_xgb, newdata = X)
-    # Compute performance metrics
     mae_fn  <- function(a, p) mean(abs(a - p))
     mape_fn <- function(a, p) mean(abs((a - p)/a)) * 100
     performance <- tibble(
@@ -120,23 +125,19 @@ server <- function(input, output, session) {
       R2_Adj = c(summary(model_linear)$adj.r.squared,summary(model_log)$adj.r.squared,summary(model_poly)$adj.r.squared,1- sum((data$SAL-data$PredRF)^2)/sum((data$SAL-mean(data$SAL))^2),1- sum((data$SAL-data$PredXGB)^2)/sum((data$SAL-mean(data$SAL))^2))
     )
     best_model <- performance$Model[which.min(performance$RMSE)]
-    table_data <- data %>%
-      mutate(
-        PredictedSalary = case_when(
-          best_model=="Linear" ~ PredLinear,
-          best_model=="Log-Linear" ~ PredLog,
-          best_model=="Polynomial" ~ PredPoly,
-          best_model=="Random Forest" ~ PredRF,
-          best_model=="XGBoost" ~ PredXGB
-        ),
-        ValueDelta = PredictedSalary - SAL,
-        Grade      = case_when(
-          ValueDelta>=600 ~ "A | Great Value",
-          ValueDelta>=200 ~ "B | Good Value",
-          ValueDelta>-200 ~ "C | Moderate Value",
-          TRUE            ~ "X | Fade"
-        )
-      ) %>% arrange(desc(ValueDelta))
+    table_data <- data %>% mutate(
+      PredictedSalary = case_when(
+        best_model=="Linear" ~ PredLinear,
+        best_model=="Log-Linear" ~ PredLog,
+        best_model=="Polynomial" ~ PredPoly,
+        best_model=="Random Forest" ~ PredRF,
+        best_model=="XGBoost" ~ PredXGB),
+      ValueDelta = PredictedSalary - SAL,
+      Grade      = case_when(
+        ValueDelta>=600 ~ "A | Great Value",
+        ValueDelta>=200 ~ "B | Good Value",
+        ValueDelta>-200 ~ "C | Moderate Value",
+        TRUE            ~ "X | Fade")) %>% arrange(desc(ValueDelta))
     list(performance=performance,table=table_data)
   })
   
@@ -151,20 +152,16 @@ server <- function(input, output, session) {
     )
   })
   
-  # Reactive filtered table with safe guards for inputs
+  # Reactive filtered table
   filtered_table <- reactive({
     req(results())
     tbl <- results()$table
-    if (!is.null(input$player_search) && nzchar(input$player_search)) {
-      tbl <- tbl[grepl(input$player_search, tbl$PLAYER, ignore.case=TRUE),]
-    }
+    if (!is.null(input$player_search) && nzchar(input$player_search)) tbl <- tbl[grepl(input$player_search,tbl$PLAYER,ignore.case=TRUE),]
     if (!is.null(input$salary_range)) {
       rng <- input$salary_range
       tbl <- tbl[tbl$SAL>=rng[1] & tbl$SAL<=rng[2],]
     }
-    if (!is.null(input$grade_filter) && input$grade_filter!="All") {
-      tbl <- tbl[tbl$Grade==input$grade_filter,]
-    }
+    if (!is.null(input$grade_filter) && input$grade_filter!="All") tbl <- tbl[tbl$Grade==input$grade_filter,]
     tbl
   })
   
@@ -192,7 +189,7 @@ server <- function(input, output, session) {
                 PredictedSalary=colDef(name="Predicted Salary",format=colFormat(prefix="$",separators=TRUE,digits=2),align="center"),
                 ValueDelta=colDef(name="Value Delta",format=colFormat(prefix="$",separators=TRUE,digits=2),align="center"),
                 Grade=colDef(name="Grade",align="center")
-              ),defaultPageSize=25,bordered=TRUE,highlight=TRUE)
+              ),defaultPageSize=10,bordered=TRUE,highlight=TRUE)
   })
   
   # Download handler
